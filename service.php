@@ -18,7 +18,7 @@ abstract class service {
   // $app = instance of \Slim\Slim()
   // $path = $path to service
 
-  protected function __construct($app, $path, $autoMap = false) {
+  protected function __construct($app, $path, $autoMap = true) {
     $this->path = $path;
     $this->app = $app;
     $this->response = $app->response();
