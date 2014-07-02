@@ -19,6 +19,7 @@ abstract class service {
   // $path = $path to service
 
   protected function __construct($app, $path, $autoMap = true) {
+    // $app = \Slim\Slim::getInstance();
     $this->path = $path;
     $this->app = $app;
     $this->response = $app->response();
@@ -29,7 +30,7 @@ abstract class service {
       $class = new \ReflectionClass($this);
       $methods = $class->getMethods(\ReflectionMethod::IS_PUBLIC);
       $sortFun = function($value1, $value2) {
-          return strlen($value1->name) < strlen($value2->name);
+          return strlen($value1->name) > strlen($value2->name);
         };
       usort($methods, $sortFun);
       // go through all the public methods
@@ -147,10 +148,10 @@ abstract class service {
     return json_decode($this->request->getBody(), true);
   }
 
-  protected function sendError($e) {
+  protected function sendError($e,$body='') {
     $this->setCT(self::CT_PLAIN);
     $this->response->status($e->getCode());
-    $this->response->body($e->getMessage() . PHP_EOL);
+    $this->response->body($body . $e->getMessage() . PHP_EOL);
   }
 
   protected function setCT($type) {
@@ -174,7 +175,7 @@ abstract class service {
     $reqPar = $method->getNumberOfRequiredParameters();
     foreach ($method->getParameters() as $key => $param) {
       if ($key < $reqPar) {
-        $path .= '/:' . $param->name;
+        $path .= '/:' . str_replace('_', '+', $param->name);
       } else {
         $path .= '(/:' . $param->name;
         $pathEnd .= ')';
