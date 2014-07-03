@@ -40,7 +40,8 @@ abstract class service {
             $path = $this->getPathStr($method->name, $httpMethod) .
               $this->getParametersStr($method);
             // array_push($this->methods, $httpMethod . ': ' . $path);
-            call_user_func(array($this->app, $httpMethod), $path, array($this, $method->name));
+            //call_user_func(array($this->app, $httpMethod), $path, array($this, $method->name));
+            $this->app->map($path, array($this, $method->name))->via($httpMethod)->name($method->name . '_' . uniqid());
             break;
           }
         }
@@ -75,7 +76,7 @@ abstract class service {
             $txt = '!' . $httpMethod . ':' . $path;
           }
           $help = $this->getAnnotations($method->name, '\WS\annotations\HelpTxt');
-          if (count($help) == 1){
+          if (count($help) == 1) {
             $txt .= ' // ' . $help[0]->get();
           }
           array_push($api, $txt);
@@ -84,12 +85,24 @@ abstract class service {
       }
     }
 
-    $arsort = function($v1,$v2){
-      return $v1 < $v2;
-    };
-    usort($api,$arsort);
+    $arsort = function($v1, $v2) {
+        return $v1 < $v2;
+      };
+    usort($api, $arsort);
     $this->setCT(self::CT_PLAIN);
     $this->response->body(implode(PHP_EOL, $api));
+  }
+
+  protected function accepts() {
+    $type = $this->request->headers->get('Accept');
+    switch ($type) {
+      case 'application/json':
+        return self::CT_PLAIN;
+      case 'text/plain':
+        return self::CT_PLAIN;
+      default:
+        return self::CT_PLAIN;
+    }
   }
 
   private function getAnnotations($name, $classInstance = null) {
@@ -148,7 +161,7 @@ abstract class service {
     return json_decode($this->request->getBody(), true);
   }
 
-  protected function sendError($e,$body='') {
+  protected function sendError($e, $body = '') {
     $this->setCT(self::CT_PLAIN);
     $this->response->status($e->getCode());
     $this->response->body($body . $e->getMessage() . PHP_EOL);
