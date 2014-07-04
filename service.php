@@ -4,128 +4,113 @@ namespace WS;
 
 use \WS\annotations as WSann;
 
+require_once __DIR__ . '/availableServices.php';
+
 abstract class service {
-  // content types
+  // supported content types
 
   const CT_PLAIN = 0;
   const CT_JSON = 1;
+  const CT_HTML = 2;
 
   protected $app;
+  protected $autoMapMethods = null;
+  protected $path;
   protected $response;
   protected $request;
-  protected $autoMapMethods;
+  protected $availableServices = null;
+  protected $useHelp = false;
+  protected $serviceName;
 
   // $app = instance of \Slim\Slim()
   // $path = $path to service
-
-  public function __construct($app, $path, $autoMap = true) {
-    // $app = \Slim\Slim::getInstance();
+  public function __construct(\Slim\Slim $app, $path, $autoMap = true, $bindHelpTo = null) {
     $this->path = $path;
     $this->app = $app;
     $this->response = $app->response();
     $this->request = $app->request();
-    $this->autoMapMethods = array('get', 'post', 'delete', 'options');
+    $this->routes = array();
+
+    // automap these methods, can be overridden in constructor
+    if (is_null($this->autoMapMethods)) {
+      $this->autoMapMethods = array('get', 'post', 'delete', 'options', 'put');
+    }
+
+    if (!is_null($bindHelpTo)) {
+      $this->bindApiHelp($bindHelpTo);
+    }
 
     if ($autoMap) {
+      // map public methods to REST api
       $class = new \ReflectionClass($this);
+      // get all public methods
       $methods = $class->getMethods(\ReflectionMethod::IS_PUBLIC);
       $sortFun = function($value1, $value2) {
           return strlen($value1->name) > strlen($value2->name);
         };
+      // this sorting allows to map paths which have similar beginning but different end correctly.
+      // Use longer function name for longer paths with the same beginning (after _ is ignored in path).
       usort($methods, $sortFun);
-      // go through all the public methods
+      $regex = '$(^' . implode($this->autoMapMethods, '|^') . ')$';
       foreach ($methods as $method) {
-        foreach ($this->autoMapMethods as $httpMethod) {
-          if (strpos($method->name, $httpMethod) === 0) {
-            $path = $this->getPathStr($method->name, $httpMethod) .
-              $this->getParametersStr($method);
-            // array_push($this->methods, $httpMethod . ': ' . $path);
-            //call_user_func(array($this->app, $httpMethod), $path, array($this, $method->name));
-            $this->app->map($path, array($this, $method->name))->via($httpMethod)->name($method->name . '_' . uniqid());
-            break;
-          }
+        preg_match($regex, $method->name, $temp);
+        if (count($temp) == 0) {
+          continue;
         }
+        $httpMethod = $temp[0];
+        $path = $this->getPathStr($method->name, $httpMethod) .
+          $this->getParametersStr($method);
+        // remember in via method name is uppercase
+        array_push($this->routes, $httpMethod . ':' . $path);
+        if (strlen($this->path) == 1 && strlen($path) > 0) {
+          $p = $path;
+        } else {
+          $p = $this->path . $path;
+        }
+        $this->app->map($p, array($this, $method->name))->
+          via(strtoupper($httpMethod))->
+          name(uniqid());
+        $this->addToAvailableServices($httpMethod, $p, $method->name);
+      }
+      // if plain get does not exist, make it
+      if (array_search('get:', $this->routes) === false && is_null($bindHelpTo)) {
+        $this->bindApiHelp();
       }
     }
   }
-
-  // path/api is automatically bind to this
 
   /**
-   * @WSann\HelpTxt("Returns this api help command")
+   * @WSann\routeDescription("Return info of this API.")
    */
-  public function getApi() {
-    $class = new \ReflectionClass($this);
-    $methods = $class->getMethods(\ReflectionMethod::IS_PUBLIC);
-    $api = array();
-    foreach ($methods as $method) {
-      foreach ($this->autoMapMethods as $httpMethod) {
-        if (strpos($method->name, $httpMethod) === 0) {
-
-
-          $p = $this->getPathStr($method->name, $httpMethod);
-          $p = substr($p, 1);
-          $p = str_replace('/', ' ', $p);
-          $s = str_replace('(/', ' (', $this->getParametersStr($method));
-          $s = str_replace('/', ' ', $s);
-          $path = $p . $s;
-
-          if ($httpMethod == 'get') {
-            $txt = '!' . $path;
-          } else {
-            $txt = '!' . $httpMethod . ':' . $path;
-          }
-          $help = $this->getAnnotations($method->name, '\WS\annotations\HelpTxt');
-          if (count($help) == 1) {
-            $txt .= ' // ' . $help[0]->get();
-          }
-          array_push($api, $txt);
-          break;
-        }
+  public function defaultGet() {
+    if (!is_null($this->availableServices)) {
+      switch ($this->accepts()) {
+        case self::CT_HTML:
+          $this->setCT(self::CT_HTML);
+          $this->response->body($this->availableServices->getServiceAsHtml($this->serviceName));
+          return;
+        case self::CT_PLAIN:
+          $this->setCT(self::CT_PLAIN);
+          $this->response->body($this->availableServices->getServiceAsTxt($this->serviceName));
       }
     }
-
-    $arsort = function($v1, $v2) {
-        return $v1 < $v2;
-      };
-    usort($api, $arsort);
-    $this->setCT(self::CT_PLAIN);
-    $this->response->body(implode(PHP_EOL, $api));
   }
 
+  // protected
+
   protected function accepts() {
-    $type = $this->request->headers->get('Accept');
-    switch ($type) {
+    $type = explode(',', $this->request->headers->get('Accept'));
+    switch ($type[0]) {
+      case 'text/html':
+        return self::CT_HTML;
       case 'application/json':
-        return self::CT_PLAIN;
+        return self::CT_JSON;
       case 'text/plain':
         return self::CT_PLAIN;
       default:
         return self::CT_PLAIN;
     }
   }
-
-  private function getAnnotations($name, $classInstance = null) {
-    $reader = new \Doctrine\Common\Annotations\AnnotationReader();
-    // register annotations
-
-    $r = new \ReflectionMethod($this, $name);
-    $methodAnnotations = $reader->getMethodAnnotations($r);
-    if (is_null($classInstance)) {
-      return $methodAnnotations;
-    }
-
-    $ar = array();
-
-    foreach ($methodAnnotations as $key => $annotation) {
-      if (strcmp(get_class($annotation), $classInstance)) {
-        array_push($ar, $annotation);
-      }
-    }
-    return $ar;
-  }
-
-  // protected
 
   protected function allowCrossPosting($allowFrom = null) {
 
@@ -148,13 +133,19 @@ abstract class service {
         return;
       }
     }
-
     $this->response->headers->set('Content-Type', $from);
     $this->response->headers->set('Access-Control-Allow-Origin', $from);
     $this->response->headers->set('Access-Control-Allow-Headers', 'Content-Type');
     $this->response->headers->set('Access-Control-Allow-Methods', 'GET,HEAD,POST,OPTIONS,TRACE');
     $this->response->headers->set('Access-Control-Allow-Credentials', 'true');
     $this->response->headers->set('Allow', 'GET,HEAD,POST,OPTIONS,TRACE');
+  }
+
+  protected function bindApiHelp($path = '', $functionName = 'defaultGet') {
+    $this->app->map($this->path . $path, array($this, $functionName))->
+      via('GET')->
+      name(uniqid());
+    $this->addToAvailableServices('get', $this->path . $path, $functionName);
   }
 
   protected function getBodyAsJSON() {
@@ -182,6 +173,60 @@ abstract class service {
    * Private
    */
 
+  protected function addToAvailableServices($httpMethod, $path, $fName) {
+    if (is_null($this->availableServices)) {
+      $this->availableServices = new availableServices();
+      $reader = new \Doctrine\Common\Annotations\AnnotationReader();
+      $r = new \ReflectionClass($this);
+      $serviceNameAnnotation = $reader->getClassAnnotation($r, 'WS\annotations\serviceName');
+      if (!count($serviceNameAnnotation)) {
+        return;
+      }
+      $serviceName = $serviceNameAnnotation->value;
+      $this->serviceName = $serviceName;
+      $serviceDescAnnotation = $reader->getClassAnnotation($r, 'WS\annotations\serviceDescription');
+      $serviceDescription = '';
+      if (count($serviceDescAnnotation)) {
+        $serviceDescription = $serviceDescAnnotation->value;
+      }
+      $this->availableServices->addService($serviceName, $this->path, $serviceDescription);
+      $this->useHelp = true;
+    }
+    if (!$this->useHelp) {
+      return;
+    }
+    // register methods if they have descriptions
+    $ann = $this->getMethodDescription($fName);
+    if (!is_null($ann)) {
+      $variables = $this->getMethodVariables($fName);
+      $this->availableServices->addMethod($this->serviceName, $path, $ann, $httpMethod, $variables);
+    }
+  }
+
+  private function getMethodDescription($fName) {
+    $reader = new \Doctrine\Common\Annotations\AnnotationReader();
+    $rm = new \ReflectionMethod($this, $fName);
+    $methodAnnotation = $reader->getMethodAnnotation($rm, 'WS\annotations\routeDescription');
+    if (count($methodAnnotation) > 0) {
+      return $methodAnnotation->value;
+    }
+    return null;
+  }
+
+  private function getMethodVariables($fName) {
+    $reader = new \Doctrine\Common\Annotations\AnnotationReader();
+    $rm = new \ReflectionMethod($this, $fName);
+    $methodAnnotation = $reader->getMethodAnnotations($rm);
+    $typeName = 'WS\annotations\routeVariable';
+    $ar = array();
+    foreach ($methodAnnotation as $ann) {
+      if ($ann instanceof $typeName) {
+        array_push($ar, $ann);
+      }
+    }
+    return $ar;
+  }
+
   private function getParametersStr($method) {
     $path = '';
     $pathEnd = '';
@@ -198,11 +243,13 @@ abstract class service {
   }
 
   private function getPathStr($name, $keyWord) {
-    $name = substr($name, strlen($keyWord));
+    if (substr($name, 0, strlen($keyWord)) == $keyWord) {
+      $name = substr($name, strlen($keyWord));
+    }
     if (($pos = strpos($name, '_')) !== false) {
       $name = substr($name, 0, $pos);
     }
-    $path = $this->path;
+    $path = '';
     while (strlen($name) > 0) {
       preg_match('@([A-Z][a-z].*?)([A-Z])@', $name, $temp);
       if (count($temp) == 0) {
