@@ -47,7 +47,7 @@ class availableServices {
       "<i>{$ser['description']}</i><p>" .
       "List of methods<ul>";
     foreach ($ser['methods'] as $method) {
-      $cont .= "<li>Path: <b>{$ser['path']}{$method['path']}</b><br>" .
+      $cont .= "<li>Path: <b>{$method['path']}</b><br>" .
         "HTTP request method: <b>{$method['httpMethod']}</b><br>";
       if (count($method['variables'])) {
         foreach ($method['variables'] as $var) {
