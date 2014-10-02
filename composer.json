@@ -1,6 +1,7 @@
 {
   "name": "mathCodingClub/slimClass",
   "repositories": [{
+      "name": "mathCodingClub/serviceAnnotations",
       "type": "git",
       "url": "https://github.com/mathCodingClub/serviceAnnotations"
     }
