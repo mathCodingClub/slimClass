@@ -1,6 +1,6 @@
 <?php
 
-namespace WS;
+namespace slimClass;
 
 class availableServices {
 

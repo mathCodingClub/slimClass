@@ -1,10 +1,9 @@
 <?php
 
-namespace WS;
+namespace slimClass;
 
-use \WS\annotations as WSann;
-
-require_once __DIR__ . '/availableServices.php';
+// define new use for service annotations
+use \serviceAnnotations as ann;
 
 abstract class service {
   // supported content types
@@ -80,7 +79,7 @@ abstract class service {
   }
 
   /**
-   * @WSann\routeDescription("Return info of this API.")
+   * @ann\routeDescription("Return info of this API.")
    */
   public function defaultGet() {
     if (!is_null($this->availableServices)) {
