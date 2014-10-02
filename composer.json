@@ -15,5 +15,6 @@
     "psr-4": {
       "slimClass\\": ""
     }
-  }
+  },
+  "minimum-stability": "dev"
 }
