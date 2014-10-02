@@ -1,20 +1,8 @@
 {
   "name": "mathCodingClub/slimClass",
-  "repositories": [{
-      "type": "package",
-      "package": {
-        "name": "mathCodingClub/serviceAnnotations",
-        "source": {
-          "url": "https://github.com/mathCodingClub/serviceAnnotations",
-          "type": "git"
-        }
-      }
-    }
-  ],
   "require": {
     "slim/slim": "2.*",
     "doctrine/common": "*",
-    "mathCodingClub/serviceAnnotations": "dev-master@dev"
   },
   "autoload": {
     "psr-4": {
