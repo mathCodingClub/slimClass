@@ -1,9 +1,14 @@
 {
   "name": "mathCodingClub/slimClass",
   "repositories": [{
-      "name": "mathCodingClub/serviceAnnotations",
-      "type": "git",
-      "url": "https://github.com/mathCodingClub/serviceAnnotations"
+      "type": "package",
+      "package": {
+        "name": "mathCodingClub/serviceAnnotations",
+        "source": {
+          "url": "https://github.com/mathCodingClub/serviceAnnotations",
+          "type": "git"
+        }
+      }
     }
   ],
   "require": {
