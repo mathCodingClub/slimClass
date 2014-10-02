@@ -2,7 +2,7 @@
   "name": "mathCodingClub/slimClass",
   "require": {
     "slim/slim": "2.*",
-    "doctrine/common": "*",
+    "doctrine/common": "*"
   },
   "autoload": {
     "psr-4": {
