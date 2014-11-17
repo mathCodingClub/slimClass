@@ -6,6 +6,7 @@ namespace slimClass;
 use \serviceAnnotations as ann;
 
 abstract class service {
+
   // supported content types
 
   const CT_PLAIN = 0;
@@ -20,6 +21,7 @@ abstract class service {
   protected $availableServices = null;
   protected $useHelp = false;
   protected $serviceName;
+  private $reader;
 
   // $app = instance of \Slim\Slim()
   // $path = $path to service
@@ -29,6 +31,7 @@ abstract class service {
     $this->response = $app->response();
     $this->request = $app->request();
     $this->routes = array();
+    $this->reader = new \Doctrine\Common\Annotations\AnnotationReader();
 
     // automap these methods, can be overridden in constructor
     if (is_null($this->autoMapMethods)) {
@@ -45,8 +48,8 @@ abstract class service {
       // get all public methods
       $methods = $class->getMethods(\ReflectionMethod::IS_PUBLIC);
       $sortFun = function($value1, $value2) {
-          return strlen($value1->name) > strlen($value2->name);
-        };
+        return strlen($value1->name) > strlen($value2->name);
+      };
       // this sorting allows to map paths which have similar beginning but different end correctly.
       // Use longer function name for longer paths with the same beginning (after _ is ignored in path).
       usort($methods, $sortFun);
@@ -57,8 +60,14 @@ abstract class service {
           continue;
         }
         $httpMethod = $temp[0];
-        $path = $this->getPathStr($method->name, $httpMethod) .
-          $this->getParametersStr($method);
+        // first check if this has custom route (remember httpmethod needs to be the first word)
+        $ann = $this->reader->getMethodAnnotation($method, '\serviceAnnotations\route');
+        if (is_object($ann)) {
+          $path = $ann->value;          
+        } else {
+          $path = $this->getPathStr($method->name, $httpMethod) .
+                  $this->getParametersStr($method);
+        }        
         // remember in via method name is uppercase
         array_push($this->routes, $httpMethod . ':' . $path);
         if (strlen($this->path) == 1 && strlen($path) > 0) {
@@ -67,8 +76,8 @@ abstract class service {
           $p = $this->path . $path;
         }
         $this->app->map($p, array($this, $method->name))->
-          via(strtoupper($httpMethod))->
-          name(uniqid());
+                via(strtoupper($httpMethod))->
+                name(uniqid());
         $this->addToAvailableServices($httpMethod, $p, $method->name);
       }
       // if plain get does not exist, make it
@@ -142,8 +151,8 @@ abstract class service {
 
   protected function bindApiHelp($path = '', $functionName = 'defaultGet') {
     $this->app->map($this->path . $path, array($this, $functionName))->
-      via('GET')->
-      name(uniqid());
+            via('GET')->
+            name(uniqid());
     $this->addToAvailableServices('get', $this->path . $path, $functionName);
   }
 
