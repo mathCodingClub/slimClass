@@ -167,6 +167,7 @@ abstract class service {
   }
 
   protected function sendArrayAsJSON($array) {
+    $this->setCT(self::CT_JSON);
     $this->response->body(json_encode($array, JSON_NUMERIC_CHECK));
   }
 
