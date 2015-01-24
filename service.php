@@ -63,11 +63,11 @@ abstract class service {
         // first check if this has custom route (remember httpmethod needs to be the first word)
         $ann = $this->reader->getMethodAnnotation($method, '\serviceAnnotations\route');
         if (is_object($ann)) {
-          $path = $ann->value;          
+          $path = $ann->value;
         } else {
           $path = $this->getPathStr($method->name, $httpMethod) .
                   $this->getParametersStr($method);
-        }        
+        }
         // remember in via method name is uppercase
         array_push($this->routes, $httpMethod . ':' . $path);
         if (strlen($this->path) == 1 && strlen($path) > 0) {
@@ -164,6 +164,10 @@ abstract class service {
     $this->setCT(self::CT_PLAIN);
     $this->response->status($e->getCode());
     $this->response->body($body . $e->getMessage() . PHP_EOL);
+  }
+
+  protected function sendArrayAsJSON($array) {
+    $this->response->body(json_encode($array, JSON_NUMERIC_CHECK));
   }
 
   protected function setCT($type) {
