@@ -75,6 +75,10 @@ abstract class service {
         } else {
           $p = $this->path . $path;
         }
+        // add middleware here
+        
+        
+        
         $this->app->map($p, array($this, $method->name))->
                 via(strtoupper($httpMethod))->
                 name(uniqid());

@@ -1,0 +1,13 @@
+{     
+  "require": {
+    "slim/slim": "2.*",
+    "doctrine/common": "*"  
+  },  
+  "autoload": {
+    "psr-4": {      
+      "slimClass\\": "..\\..\\",
+      "demos\\": "demos\\"
+    }
+  },
+  "minimum-stability": "dev"
+}
