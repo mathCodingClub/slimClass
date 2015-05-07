@@ -11,7 +11,7 @@ class serviceException extends \Exception {
     $this->params = $params;
   }
   
-  public function params(){
+  public function getParams(){
     return $this->params;
   }
 
