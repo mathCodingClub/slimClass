@@ -12,7 +12,7 @@ class serviceException extends \Exception {
   }
   
   public function params(){
-    return $params;
+    return $this->params;
   }
 
 }
