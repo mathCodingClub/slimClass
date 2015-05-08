@@ -66,7 +66,7 @@ abstract class service {
           $path = $ann->value;
         } else {
           $path = $this->getPathStr($method->name, $httpMethod) .
-                  $this->getParametersStr($method);
+              $this->getParametersStr($method);
         }
         // remember in via method name is uppercase
         array_push($this->routes, $httpMethod . ':' . $path);
@@ -76,12 +76,16 @@ abstract class service {
           $p = $this->path . $path;
         }
         // add middleware here
-        
-        
-        
-        $this->app->map($p, array($this, $method->name))->
-                via(strtoupper($httpMethod))->
-                name(uniqid());
+        $middlewareAnnotation = $this->reader->getMethodAnnotation($method, '\serviceAnnotations\middleware');        
+        if (method_exists($this, 'middleware') && !is_object($middlewareAnnotation)) {
+          $this->app->map($p, array($this, 'middleware'), array($this, $method->name))->
+              via(strtoupper($httpMethod))->
+              name(uniqid());
+        } else {
+          $this->app->map($p, array($this, $method->name))->
+              via(strtoupper($httpMethod))->
+              name(uniqid());
+        }
         $this->addToAvailableServices($httpMethod, $p, $method->name);
       }
       // if plain get does not exist, make it
@@ -155,8 +159,8 @@ abstract class service {
 
   protected function bindApiHelp($path = '', $functionName = 'defaultGet') {
     $this->app->map($this->path . $path, array($this, $functionName))->
-            via('GET')->
-            name(uniqid());
+        via('GET')->
+        name(uniqid());
     $this->addToAvailableServices('get', $this->path . $path, $functionName);
   }
 
